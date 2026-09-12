@@ -29,6 +29,10 @@ impl IdentityDb {
         con.ping().await?;
         con.close().await?;
 
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await?;
+
         Ok(IdentityDb { pool })
     }
 }
