@@ -4,14 +4,14 @@ docker compose up -d postgres
 for i in $(seq 1 5);
 do
     echo "Polling postgres db..."
-    status=$(docker inspect --format='{{json .State.Health}}' postgres)
+    status=$(docker inspect --format='{{json .State.Health}}' postgres-identity)
     if [[ $status == *"healthy"* ]];
     then
         break
     fi
     sleep 5
 done
-echo "postgress is healthy"
+echo "postgres is healthy"
 
 cargo sqlx migrate run
 rm -rf .sqlx

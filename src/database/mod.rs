@@ -1,8 +1,8 @@
 use std::time::Duration;
-
 use sqlx::{Connection, Pool, Postgres, postgres::PgPoolOptions};
-
 use crate::config::PostgresConfig;
+
+pub mod user_manager;
 
 pub struct IdentityDb {
     pool: Pool<Postgres>,
