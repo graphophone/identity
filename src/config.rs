@@ -9,7 +9,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn build(filename: &str) -> Result<Self, anyhow::Error> {
+    pub fn build(filename: &str) -> anyhow::Result<Self> {
         let conf_content = fs::read_to_string(filename)?;
         toml::from_str(&conf_content)
             .map_err(anyhow::Error::from)
