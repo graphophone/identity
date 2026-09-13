@@ -3,6 +3,8 @@ use sqlx::{PgConnection, Result};
 use crate::{database::IdentityDb, util};
 
 pub trait UserManager {
+    async fn get_profiles(&self, user_ids: &[i64]) -> Result<Vec<Profile>>;
+    async fn get_full_profile(&self, user_id: i64) -> Result<FullProfile>;
     async fn create_user(&self, username: &str, password: &str) -> anyhow::Result<i64>;
     async fn delete_user(&self, user_id: i64) -> Result<()>;
     async fn update_avatar(&self, user_id: i64, key: &str) -> Result<Option<String>>;
@@ -83,11 +85,60 @@ impl UserManager for IdentityDb {
             UPDATE users
             SET avatar_url = $2
             WHERE id = $1
-            RETURNING OLD.avatar_url
+            RETURNING OLD.avatar_url;
         ", user_id, url)
             .fetch_one(&self.pool)
             .await?;
         
         Ok(old_url)
     }
+    
+    async fn get_profiles(&self, user_ids: &[i64]) -> Result<Vec<Profile>> {
+        let profiles: Vec<Profile> = sqlx::query_as!(Profile, r"
+            SELECT id user_id, username, avatar_url
+            FROM users
+            WHERE id IN (SELECT * FROM UNNEST($1::bigint[]));
+        ", user_ids)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(profiles)
+    }
+    
+    async fn get_full_profile(&self, user_id: i64) -> Result<FullProfile> {
+        let profile = sqlx::query_as!(FullProfile, r"
+            SELECT
+                id user_id,
+                username,
+                avatar_url,
+                first_name,
+                last_name,
+                bio,
+                country,
+                city
+            FROM users
+            WHERE id = $1;
+        ", user_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(profile)
+    }
+}
+
+pub struct Profile {
+    pub user_id: i64,
+    pub username: String,
+    pub avatar_url: Option<String>,
+}
+
+pub struct FullProfile {
+    pub user_id: i64,
+    pub username: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub bio: Option<String>,
+    pub country: Option<String>,
+    pub city: Option<String>,
 }
