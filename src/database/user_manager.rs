@@ -1,4 +1,4 @@
-use sqlx::{PgConnection, Result};
+use sqlx::Result;
 
 use crate::{database::IdentityDb, util};
 
@@ -10,7 +10,7 @@ pub trait UserManager {
     async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()>;
     async fn update_avatar(&self, user_id: i64, key: &str) -> Result<Option<String>>;
     async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()>;
-    async fn verify_password(tx: &mut PgConnection, user_id: i64, password: &str) -> anyhow::Result<bool>;
+    async fn verify_password(&self, user_id: i64, password: &str) -> anyhow::Result<bool>;
 }
 
 impl UserManager for IdentityDb {
@@ -38,11 +38,20 @@ impl UserManager for IdentityDb {
     async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()> {
         let mut tx = self.pool.begin().await?;
 
-        match Self::verify_password(&mut tx, user_id, old_password).await {
-            Ok(false) => return Err(anyhow::Error::msg("passwords do not match")),
-            Err(e) => return Err(e),
-            _ => (),
-        };
+        let password_hash = sqlx::query_scalar!(r"
+            SELECT password_hash
+            FROM users
+            WHERE id = $1;
+        ", user_id)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(anyhow::Error::from)?;
+
+        let is_valid = util::password::verify_password(old_password, &password_hash)
+            .map_err(anyhow::Error::from)?;
+        if !is_valid {
+            return Err(anyhow::Error::msg("passwords do not match"));
+        }
 
         let password_hash = util::password::hash_password(new_password)?;
         sqlx::query!(r"
@@ -55,19 +64,6 @@ impl UserManager for IdentityDb {
 
         tx.commit().await?;
         Ok(())
-    }
-    
-    async fn verify_password(tx: &mut PgConnection, user_id: i64, password: &str) -> anyhow::Result<bool> {
-        let password_hash = sqlx::query_scalar!(r"
-            SELECT password_hash
-            FROM users
-            WHERE id = $1;
-        ", user_id)
-            .fetch_one(tx)
-            .await?;
-
-        util::password::verify_password(password, &password_hash)
-            .map_err(anyhow::Error::from)
     }
     
     async fn update_avatar(&self, user_id: i64, url: &str) -> Result<Option<String>> {
@@ -141,6 +137,20 @@ impl UserManager for IdentityDb {
             .await?;
 
         Ok(())
+    }
+    
+    async fn verify_password(&self, user_id: i64, password: &str) -> anyhow::Result<bool> {
+        let password_hash = sqlx::query_scalar!(r"
+            SELECT password_hash
+            FROM users
+            WHERE id = $1;
+        ", user_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(anyhow::Error::from)?;
+
+        util::password::verify_password(password, &password_hash)
+            .map_err(anyhow::Error::from)
     }
 }
 

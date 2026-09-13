@@ -13,3 +13,9 @@ sqlx = { version = "0.9.0", features = ["postgres", "macros", "runtime-tokio"] }
 tokio = { version = "1.53.1", features = ["full"] }
 toml = "1.1.6"
 uuid = { version = "1.26.1", features = ["v4"] }
+tonic = "0.14"
+prost = "0.14"
+tonic-prost = "0.14"
+
+[build-dependencies]
+tonic-prost-build = "0.14"

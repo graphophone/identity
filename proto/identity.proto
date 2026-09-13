@@ -1,16 +1,16 @@
 syntax = "proto3";
 
-package user;
+package identity;
 
 option go_package = "graphophone.identity/internal/services/common/user";
 
-service IdentityService {
-    rpc GetProfiles(UserIds) returns (stream Profiles) {}
+service Identity {
+    rpc GetProfiles(UserIds) returns (Profiles) {}
     rpc GetFullProfile(UserId) returns (FullProfile) {}
     rpc CreateUser(CreateUserReq) returns (UserId) {}
     rpc DeleteUser(UserId) returns (Empty) {}
     rpc UpdateProfile(UpdateProfileReq) returns (Empty) {}
-    rpc UpdateAvatar(Avatar) returns (Empty) {}
+    rpc UpdateAvatar(UpdateAvatarReq) returns (Empty) {}
     rpc UpdatePassword(UpdatePasswordReq) returns (Empty) {}
     rpc VerifyPassword(VerifyPasswordReq) returns (IsValid) {}
 }
@@ -66,8 +66,9 @@ message UpdateProfileReq {
     optional string city = 8;
 }
 
-message Avatar {
-    bytes image = 1;
+message UpdateAvatarReq {
+    int64 user_id = 1;
+    bytes image = 2;
 }
 
 message UpdatePasswordReq {

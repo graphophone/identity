@@ -4,6 +4,7 @@ pub mod config;
 mod database;
 mod util;
 mod avatar_storage;
+mod service;
 
 pub async fn run(conf: config::Config) -> anyhow::Result<()> {
     println!("conf: {:?}", conf);
