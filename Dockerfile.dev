@@ -8,7 +8,9 @@ COPY . .
 ARG SQLX_OFFLINE=true
 RUN cargo build
 
-FROM scratch
+FROM alpine:3.23
+
+RUN apk add ca-certificates
 
 COPY --from=build /app/target/debug/identity .
 COPY migrations migrations

@@ -15,3 +15,9 @@ services:
         condition: service_healthy
     volumes:
       - ./servers.json:/pgadmin4/servers.json
+
+  rustfs:
+    ports:
+      - "19011:9001"
+    environment:
+      - RUSTFS_CONSOLE_ENABLE=true

@@ -5,6 +5,7 @@ use crate::{database::IdentityDb, util};
 pub trait UserManager {
     async fn create_user(&self, username: &str, password: &str) -> anyhow::Result<i64>;
     async fn delete_user(&self, user_id: i64) -> Result<()>;
+    async fn update_avatar(&self, user_id: i64, key: &str) -> Result<Option<String>>;
     async fn update_username(&self, user_id: i64, username: &str) -> Result<()>;
     async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()>;
     async fn verify_password(tx: &mut PgConnection, user_id: i64, password: &str) -> anyhow::Result<bool>;
@@ -75,5 +76,18 @@ impl UserManager for IdentityDb {
 
         util::password::verify_password(password, &password_hash)
             .map_err(anyhow::Error::from)
+    }
+    
+    async fn update_avatar(&self, user_id: i64, url: &str) -> Result<Option<String>> {
+        let old_url: Option<String> = sqlx::query_scalar!(r"
+            UPDATE users
+            SET avatar_url = $2
+            WHERE id = $1
+            RETURNING OLD.avatar_url
+        ", user_id, url)
+            .fetch_one(&self.pool)
+            .await?;
+        
+        Ok(old_url)
     }
 }

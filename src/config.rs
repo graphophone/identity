@@ -6,6 +6,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub postgres: PostgresConfig,
+    pub rustfs: RustfsConfig,
 }
 
 impl Config {
@@ -23,4 +24,13 @@ pub struct PostgresConfig {
     pub user: String,
     pub password: String,
     pub database: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RustfsConfig {
+    pub access_key: String,
+    pub secret_key: String,
+    pub endpoint_url: String,
+    pub region: String,
+    pub bucket: String,
 }

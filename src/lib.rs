@@ -3,6 +3,7 @@ use crate::database::IdentityDb;
 pub mod config;
 mod database;
 mod util;
+mod avatar_storage;
 
 pub async fn run(conf: config::Config) -> anyhow::Result<()> {
     println!("conf: {:?}", conf);
