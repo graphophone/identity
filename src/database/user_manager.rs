@@ -5,22 +5,22 @@ use crate::{database::IdentityDb, util};
 pub trait UserManager {
     async fn get_profiles(&self, user_ids: &[i64]) -> Result<Vec<Profile>>;
     async fn get_full_profile(&self, user_id: i64) -> Result<FullProfile>;
-    async fn create_user(&self, username: &str, password: &str) -> anyhow::Result<i64>;
+    async fn create_user(&self, username: &str, email: &str, password: &str) -> anyhow::Result<i64>;
     async fn delete_user(&self, user_id: i64) -> Result<()>;
+    async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()>;
     async fn update_avatar(&self, user_id: i64, key: &str) -> Result<Option<String>>;
-    async fn update_username(&self, user_id: i64, username: &str) -> Result<()>;
     async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()>;
     async fn verify_password(tx: &mut PgConnection, user_id: i64, password: &str) -> anyhow::Result<bool>;
 }
 
 impl UserManager for IdentityDb {
-    async fn create_user(&self, username: &str, password: &str) -> anyhow::Result<i64> {
+    async fn create_user(&self, username: &str, email: &str, password: &str) -> anyhow::Result<i64> {
         let password_hash = util::password::hash_password(password)?;
         let id = sqlx::query_scalar!(r"
-            INSERT INTO users (username, password_hash)
-            VALUES ($1, $2)
+            INSERT INTO users (username, email, password_hash)
+            VALUES ($1, $2, $3)
             RETURNING id;
-        ", username, password_hash)
+        ", username, email, password_hash)
             .fetch_one(&self.pool)
             .await?;
         Ok(id)
@@ -30,16 +30,6 @@ impl UserManager for IdentityDb {
         sqlx::query!(r"
             DELETE FROM users WHERE id = $1;
         ", user_id)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-    
-    async fn update_username(&self, user_id: i64, username: &str) -> Result<()> {
-        sqlx::query!(r"
-            UPDATE users SET username = $1
-            WHERE id = $2
-        ", username, user_id)
             .execute(&self.pool)
             .await?;
         Ok(())
@@ -124,6 +114,34 @@ impl UserManager for IdentityDb {
 
         Ok(profile)
     }
+    
+    async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()> {
+        sqlx::query!(r"
+            UPDATE users
+            SET 
+                username = $2,
+                first_name = $3,
+                last_name = $4,
+                bio = $5,
+                email = $6,
+                country = $7,
+                city = $8
+            WHERE id = $1
+            ",
+            user_id,
+            metadata.username,
+            metadata.first_name,
+            metadata.last_name,
+            metadata.bio,
+            metadata.email,
+            metadata.country,
+            metadata.city,
+        )
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
 }
 
 pub struct Profile {
@@ -135,9 +153,19 @@ pub struct Profile {
 pub struct FullProfile {
     pub user_id: i64,
     pub username: String,
+    pub avatar_url: Option<String>,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
-    pub avatar_url: Option<String>,
+    pub bio: Option<String>,
+    pub country: Option<String>,
+    pub city: Option<String>,
+}
+
+pub struct ProfileMetadata {
+    pub username: String,
+    pub email: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     pub bio: Option<String>,
     pub country: Option<String>,
     pub city: Option<String>,

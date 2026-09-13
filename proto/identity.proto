@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "graphophone.identity/internal/services/common/user";
+
+service IdentityService {
+    rpc GetProfiles(UserIds) returns (stream Profiles) {}
+    rpc GetFullProfile(UserId) returns (FullProfile) {}
+    rpc CreateUser(CreateUserReq) returns (UserId) {}
+    rpc DeleteUser(UserId) returns (Empty) {}
+    rpc UpdateProfile(UpdateProfileReq) returns (Empty) {}
+    rpc UpdateAvatar(Avatar) returns (Empty) {}
+    rpc UpdatePassword(UpdatePasswordReq) returns (Empty) {}
+    rpc VerifyPassword(VerifyPasswordReq) returns (IsValid) {}
+}
+
+message Empty {}
+
+message UserIds {
+    repeated int64 user_ids = 1;
+}
+
+message Profile {
+    int64 user_id = 1;
+    string username = 2;
+    optional string avatar_url = 3;
+}
+
+message Profiles {
+    repeated Profile profiles = 1;
+}
+
+
+message UserId {
+    int64 user_id = 1;
+}
+
+message FullProfile {
+    int64 user_id = 1;
+    string username = 2;
+    optional string avatar_url = 3;
+    optional string first_name = 4;
+    optional string last_name = 5;
+    optional string bio = 6;
+    optional string country = 7;
+    optional string city = 8;
+}
+
+message CreateUserReq {
+    string username = 1;
+    string email = 2;
+    string password = 3;
+    optional string first_name = 4;
+    optional string last_name = 5;
+}
+
+message UpdateProfileReq {
+    int64 user_id = 1;
+    string username = 2;
+    string email = 3;
+    optional string first_name = 4;
+    optional string last_name = 5;
+    optional string bio = 6;
+    optional string country = 7;
+    optional string city = 8;
+}
+
+message Avatar {
+    bytes image = 1;
+}
+
+message UpdatePasswordReq {
+    int64 user_id = 1;
+    string old_password = 2;
+    string new_password = 3;
+}
+
+message VerifyPasswordReq {
+    int64 user_id = 1;
+    string password = 2;
+}
+
+message IsValid {
+    bool is_valid = 1;
+}
