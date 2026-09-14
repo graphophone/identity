@@ -16,6 +16,7 @@ uuid = { version = "1.26.1", features = ["v4"] }
 tonic = "0.14"
 prost = "0.14"
 tonic-prost = "0.14"
+tower-http = { version = "0.7.1", features = ["trace"] }
 
 [build-dependencies]
 tonic-prost-build = "0.14"

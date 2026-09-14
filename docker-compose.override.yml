@@ -15,6 +15,8 @@ services:
         condition: service_healthy
     volumes:
       - ./servers.json:/pgadmin4/servers.json
+    networks:
+      - postgres-identity-db
 
   rustfs:
     ports:

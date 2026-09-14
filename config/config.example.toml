@@ -4,3 +4,10 @@ port = 5432
 user = "user"
 password = "pg-identity-pass"
 database = "identity-db"
+
+[rustfs]
+access_key = "rustfsadmin"
+secret_key = "rustfsadmin"
+endpoint_url="http://rustfs:9000"
+region="eu-west-1"
+bucket = "avatar-bucket"
