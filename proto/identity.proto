@@ -12,7 +12,7 @@ service Identity {
     rpc UpdateProfile(UpdateProfileReq) returns (Empty) {}
     rpc UpdateAvatar(UpdateAvatarReq) returns (Empty) {}
     rpc UpdatePassword(UpdatePasswordReq) returns (Empty) {}
-    rpc VerifyPassword(VerifyPasswordReq) returns (IsValid) {}
+    rpc VerifyPassword(VerifyPasswordReq) returns (UserId) {}
 }
 
 message Empty {}
@@ -78,10 +78,6 @@ message UpdatePasswordReq {
 }
 
 message VerifyPasswordReq {
-    int64 user_id = 1;
+    string username = 1;
     string password = 2;
-}
-
-message IsValid {
-    bool is_valid = 1;
 }

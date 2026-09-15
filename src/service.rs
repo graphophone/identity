@@ -1,4 +1,4 @@
-use crate::{avatar_storage::AvatarStorage, database::{IdentityDb, user_manager::{ProfileMetadata, UserManager}}, service::identity::{CreateUserReq, Empty, FullProfile, IsValid, Profile, Profiles, UpdateAvatarReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
+use crate::{avatar_storage::AvatarStorage, database::{IdentityDb, user_manager::{ProfileMetadata, UserManager}}, service::identity::{CreateUserReq, Empty, FullProfile, Profile, Profiles, UpdateAvatarReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
 
 pub mod identity {
     tonic::include_proto!("identity");
@@ -148,14 +148,14 @@ impl Identity for IdentityService {
         Ok(Response::new(Empty {}))
     }
 
-    async fn verify_password(&self, req: Request<VerifyPasswordReq>) -> Result<Response<IsValid>, Status> {
+    async fn verify_password(&self, req: Request<VerifyPasswordReq>) -> Result<Response<UserId>, Status> {
         let req = req.into_inner();
 
-        let is_valid = self.db
-            .verify_password(req.user_id, &req.password)
+        let user_id = self.db
+            .verify_password(&req.username, &req.password)
             .await
             .map_err(|e| Status::from_error(e.into()))?;
 
-        Ok(Response::new(IsValid { is_valid }))
+        Ok(Response::new(UserId { user_id }))
     }
 }

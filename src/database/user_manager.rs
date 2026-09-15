@@ -10,7 +10,7 @@ pub trait UserManager {
     async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()>;
     async fn update_avatar(&self, user_id: i64, key: &str) -> Result<Option<String>>;
     async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()>;
-    async fn verify_password(&self, user_id: i64, password: &str) -> anyhow::Result<bool>;
+    async fn verify_password(&self, username: &str, password: &str) -> anyhow::Result<i64>;
 }
 
 impl UserManager for IdentityDb {
@@ -139,18 +139,21 @@ impl UserManager for IdentityDb {
         Ok(())
     }
     
-    async fn verify_password(&self, user_id: i64, password: &str) -> anyhow::Result<bool> {
-        let password_hash = sqlx::query_scalar!(r"
-            SELECT password_hash
+    async fn verify_password(&self, username: &str, password: &str) -> anyhow::Result<i64> {
+        let res = sqlx::query!(r"
+            SELECT id, password_hash
             FROM users
-            WHERE id = $1;
-        ", user_id)
+            WHERE username = $1;
+            ", username)
             .fetch_one(&self.pool)
             .await
             .map_err(anyhow::Error::from)?;
 
+        let (id, password_hash) = (res.id, res.password_hash);
         util::password::verify_password(password, &password_hash)
-            .map_err(anyhow::Error::from)
+            .map_err(anyhow::Error::from)?;
+
+        Ok(id)
     }
 }
 
