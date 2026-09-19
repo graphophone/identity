@@ -6,6 +6,7 @@ option go_package = "graphophone.identity/internal/services/common/user";
 
 service Identity {
     rpc GetProfiles(UserIds) returns (Profiles) {}
+    rpc GetBasicProfile(UserId) returns (Profile) {}
     rpc GetFullProfile(UserId) returns (FullProfile) {}
     rpc CreateUser(CreateUserReq) returns (UserId) {}
     rpc DeleteUser(UserId) returns (Empty) {}
@@ -30,7 +31,6 @@ message Profile {
 message Profiles {
     repeated Profile profiles = 1;
 }
-
 
 message UserId {
     int64 user_id = 1;

@@ -1,4 +1,4 @@
-use crate::{avatar_storage::AvatarStorage, database::{IdentityDb, user_manager::{ProfileMetadata, UserManager}}, service::identity::{CreateUserReq, Empty, FullProfile, Profile, Profiles, UpdateAvatarReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
+use crate::{avatar_storage::AvatarStorage, database::{IdentityDb, user_manager::{CreateUserData, ProfileMetadata, UserManager}}, service::identity::{CreateUserReq, Empty, FullProfile, Profile, Profiles, UpdateAvatarReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
 
 pub mod identity {
     tonic::include_proto!("identity");
@@ -59,14 +59,34 @@ impl Identity for IdentityService {
         Ok(Response::new(profile))
     }
 
+    async fn get_basic_profile(&self, req: Request<UserId>) -> Result<Response<Profile>, Status> {
+        let req = req.into_inner();
+        let profile = self.db
+            .get_basic_profile(req.user_id)
+            .await;
+        let profile = match profile {
+            Ok(v) => Profile {
+                user_id: v.user_id,
+                username: v.username,
+                avatar_url: v.avatar_url,
+            },
+            Err(e) => return Err(Status::from_error(Box::new(e))),
+        };
+
+        Ok(Response::new(profile))
+    }
+
     async fn create_user(&self, req: Request<CreateUserReq>) -> Result<Response<UserId>, Status> {
         let req = req.into_inner();
         
-        let user_id = self.db.create_user(
-            &req.username,
-            &req.email,
-            &req.password
-        ).await;
+        let metadata = CreateUserData {
+            username: req.username,
+            email: req.email,
+            password: req.password,
+            first_name: req.first_name,
+            last_name: req.last_name,
+        };
+        let user_id = self.db.create_user(&metadata).await;
         let user_id = match user_id {
             Ok(v) => UserId { user_id: v },
             Err(e) => return Err(Status::from_error(e.into())),

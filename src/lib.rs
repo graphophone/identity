@@ -10,6 +10,10 @@ mod avatar_storage;
 mod service;
 
 pub async fn run(conf: config::Config) -> anyhow::Result<()> {
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::DEBUG)
+        .init();
+
     let addr = "0.0.0.0:8080".parse()?;
 
     let identity_db = IdentityDb::build(&conf.postgres)

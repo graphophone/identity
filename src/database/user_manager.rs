@@ -4,8 +4,9 @@ use crate::{database::IdentityDb, util};
 
 pub trait UserManager {
     async fn get_profiles(&self, user_ids: &[i64]) -> Result<Vec<Profile>>;
+    async fn get_basic_profile(&self, user_id: i64) -> Result<Profile>;
     async fn get_full_profile(&self, user_id: i64) -> Result<FullProfile>;
-    async fn create_user(&self, username: &str, email: &str, password: &str) -> anyhow::Result<i64>;
+    async fn create_user(&self, metadata: &CreateUserData) -> anyhow::Result<i64>;
     async fn delete_user(&self, user_id: i64) -> Result<()>;
     async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()>;
     async fn update_avatar(&self, user_id: i64, key: &str) -> Result<Option<String>>;
@@ -14,13 +15,24 @@ pub trait UserManager {
 }
 
 impl UserManager for IdentityDb {
-    async fn create_user(&self, username: &str, email: &str, password: &str) -> anyhow::Result<i64> {
-        let password_hash = util::password::hash_password(password)?;
+    async fn create_user(&self, metadata: &CreateUserData) -> anyhow::Result<i64> {
+        let password_hash = util::password::hash_password(&metadata.password)?;
         let id = sqlx::query_scalar!(r"
-            INSERT INTO users (username, email, password_hash)
-            VALUES ($1, $2, $3)
-            RETURNING id;
-        ", username, email, password_hash)
+            INSERT INTO users (
+                username,
+                email,
+                password_hash,
+                first_name,
+                last_name
+            )
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id;",
+            metadata.username,
+            metadata.email,
+            password_hash,
+            metadata.first_name,
+            metadata.last_name,
+        )
             .fetch_one(&self.pool)
             .await?;
         Ok(id)
@@ -110,6 +122,21 @@ impl UserManager for IdentityDb {
 
         Ok(profile)
     }
+
+    async fn get_basic_profile(&self, user_id: i64) -> Result<Profile> {
+        let profile = sqlx::query_as!(Profile, r"
+            SELECT
+                id user_id,
+                username,
+                avatar_url
+            FROM users
+            WHERE id = $1;
+        ", user_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(profile)
+    }
     
     async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()> {
         sqlx::query!(r"
@@ -182,4 +209,12 @@ pub struct ProfileMetadata {
     pub bio: Option<String>,
     pub country: Option<String>,
     pub city: Option<String>,
+}
+
+pub struct CreateUserData {
+    pub username: String,
+    pub email: String,
+    pub password: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
 }
