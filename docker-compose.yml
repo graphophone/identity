@@ -85,8 +85,6 @@ services:
         condition: service_healthy
       rustfs:
         condition: service_healthy
-    volumes:
-      - .:/app
     ports:
       - "8096:8080"
     networks:
