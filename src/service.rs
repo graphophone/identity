@@ -1,4 +1,4 @@
-use crate::{database::{IdentityDb, user_manager::{CreateUserData, ProfileMetadata, UserManager}}, image_storage::ImageStorage, service::identity::{CreateUserReq, Empty, FullProfile, Profile, Profiles, UpdateAvatarReq, UpdateBannerReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
+use crate::{database::{IdentityDb, user_manager::{CreateUserData, ProfileMetadata, UserManager}}, image_storage::ImageStorage, service::identity::{CreateUserReq, Empty, FullProfile, FullProfileReq, Profile, Profiles, UpdateAvatarReq, UpdateBannerReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
 
 pub mod identity {
     tonic::include_proto!("identity");
@@ -38,22 +38,23 @@ impl Identity for IdentityService {
         Ok(Response::new(Profiles { profiles }))
     }
 
-    async fn get_full_profile(&self, req: Request<UserId>) -> Result<Response<FullProfile>, Status> {
+    async fn get_full_profile(&self, req: Request<FullProfileReq>) -> Result<Response<FullProfile>, Status> {
         let req = req.into_inner();
         let profile = self.db
-            .get_full_profile(req.user_id)
+            .get_full_profile(req.user_id, req.with_email)
             .await;
         let profile = match profile {
-            Ok(v) => FullProfile {
-                user_id: v.user_id,
-                username: v.username,
-                avatar_key: v.avatar_key,
-                banner_key: v.banner_key,
-                first_name: v.first_name,
-                last_name: v.last_name,
-                bio: v.bio,
-                country: v.country,
-                city: v.city,
+            Ok(res) => FullProfile {
+                user_id: res.user_id,
+                username: res.username,
+                email: res.email,
+                avatar_key: res.avatar_key,
+                banner_key: res.banner_key,
+                first_name: res.first_name,
+                last_name: res.last_name,
+                bio: res.bio,
+                country: res.country,
+                city: res.city,
             },
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };

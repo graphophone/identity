@@ -7,7 +7,7 @@ option go_package = "graphophone.identity/internal/services/common/user";
 service Identity {
     rpc GetProfiles(UserIds) returns (Profiles) {}
     rpc GetBasicProfile(UserId) returns (Profile) {}
-    rpc GetFullProfile(UserId) returns (FullProfile) {}
+    rpc GetFullProfile(FullProfileReq) returns (FullProfile) {}
     rpc CreateUser(CreateUserReq) returns (UserId) {}
     rpc DeleteUser(UserId) returns (Empty) {}
     rpc UpdateProfile(UpdateProfileReq) returns (Empty) {}
@@ -38,6 +38,11 @@ message UserId {
     int64 user_id = 1;
 }
 
+message FullProfileReq {
+    int64 user_id = 1;
+    bool with_email = 2;
+}
+
 message FullProfile {
     int64 user_id = 1;
     string username = 2;
@@ -48,6 +53,7 @@ message FullProfile {
     optional string bio = 7;
     optional string country = 8;
     optional string city = 9;
+    optional string email = 10;
 }
 
 message CreateUserReq {

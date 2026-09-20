@@ -5,7 +5,7 @@ use crate::{database::IdentityDb, util};
 pub trait UserManager {
     async fn get_profiles(&self, user_ids: &[i64]) -> Result<Vec<Profile>>;
     async fn get_basic_profile(&self, user_id: i64) -> Result<Profile>;
-    async fn get_full_profile(&self, user_id: i64) -> Result<FullProfile>;
+    async fn get_full_profile(&self, user_id: i64, with_email: bool) -> Result<FullProfile>;
     async fn create_user(&self, metadata: &CreateUserData) -> anyhow::Result<i64>;
     async fn delete_user(&self, user_id: i64) -> Result<()>;
     async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()>;
@@ -121,11 +121,15 @@ impl UserManager for IdentityDb {
         Ok(profiles)
     }
     
-    async fn get_full_profile(&self, user_id: i64) -> Result<FullProfile> {
+    async fn get_full_profile(&self, user_id: i64, with_email: bool) -> Result<FullProfile> {
         let profile = sqlx::query_as!(FullProfile, r"
             SELECT
                 id user_id,
                 username,
+                CASE
+                    WHEN $2 THEN email
+                    ELSE NULL
+                END email,
                 avatar_key,
                 banner_key,
                 first_name,
@@ -135,7 +139,7 @@ impl UserManager for IdentityDb {
                 city
             FROM users
             WHERE id = $1;
-        ", user_id)
+        ", user_id, with_email)
             .fetch_one(&self.pool)
             .await?;
 
@@ -214,6 +218,7 @@ pub struct Profile {
 pub struct FullProfile {
     pub user_id: i64,
     pub username: String,
+    pub email: Option<String>,
     pub avatar_key: Option<String>,
     pub banner_key: Option<String>,
     pub first_name: Option<String>,
