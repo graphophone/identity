@@ -12,6 +12,7 @@ service Identity {
     rpc DeleteUser(UserId) returns (Empty) {}
     rpc UpdateProfile(UpdateProfileReq) returns (Empty) {}
     rpc UpdateAvatar(UpdateAvatarReq) returns (Empty) {}
+    rpc UpdateBanner(UpdateBannerReq) returns (Empty) {}
     rpc UpdatePassword(UpdatePasswordReq) returns (Empty) {}
     rpc VerifyPassword(VerifyPasswordReq) returns (UserId) {}
 }
@@ -25,7 +26,8 @@ message UserIds {
 message Profile {
     int64 user_id = 1;
     string username = 2;
-    optional string avatar_url = 3;
+    optional string avatar_key = 3;
+    optional string banner_key = 4;
 }
 
 message Profiles {
@@ -39,12 +41,13 @@ message UserId {
 message FullProfile {
     int64 user_id = 1;
     string username = 2;
-    optional string avatar_url = 3;
-    optional string first_name = 4;
-    optional string last_name = 5;
-    optional string bio = 6;
-    optional string country = 7;
-    optional string city = 8;
+    optional string avatar_key = 3;
+    optional string banner_key = 4;
+    optional string first_name = 5;
+    optional string last_name = 6;
+    optional string bio = 7;
+    optional string country = 8;
+    optional string city = 9;
 }
 
 message CreateUserReq {
@@ -68,7 +71,12 @@ message UpdateProfileReq {
 
 message UpdateAvatarReq {
     int64 user_id = 1;
-    bytes image = 2;
+    optional bytes avatar = 2;
+}
+
+message UpdateBannerReq {
+    int64 user_id = 1;
+    optional bytes banner = 2;
 }
 
 message UpdatePasswordReq {

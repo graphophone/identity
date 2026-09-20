@@ -9,7 +9,8 @@ pub trait UserManager {
     async fn create_user(&self, metadata: &CreateUserData) -> anyhow::Result<i64>;
     async fn delete_user(&self, user_id: i64) -> Result<()>;
     async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()>;
-    async fn update_avatar(&self, user_id: i64, key: &str) -> Result<Option<String>>;
+    async fn update_avatar(&self, user_id: i64, key: Option<&str>) -> Result<Option<String>>;
+    async fn update_banner(&self, user_id: i64, key: Option<&str>) -> Result<Option<String>>;
     async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()>;
     async fn verify_password(&self, username: &str, password: &str) -> anyhow::Result<i64>;
 }
@@ -78,13 +79,26 @@ impl UserManager for IdentityDb {
         Ok(())
     }
     
-    async fn update_avatar(&self, user_id: i64, url: &str) -> Result<Option<String>> {
+    async fn update_avatar(&self, user_id: i64, key: Option<&str>) -> Result<Option<String>> {
         let old_url: Option<String> = sqlx::query_scalar!(r"
             UPDATE users
-            SET avatar_url = $2
+            SET avatar_key = $2
             WHERE id = $1
-            RETURNING OLD.avatar_url;
-        ", user_id, url)
+            RETURNING OLD.avatar_key;
+        ", user_id, key)
+            .fetch_one(&self.pool)
+            .await?;
+        
+        Ok(old_url)
+    }
+
+    async fn update_banner(&self, user_id: i64, key: Option<&str>) -> Result<Option<String>> {
+        let old_url: Option<String> = sqlx::query_scalar!(r"
+            UPDATE users
+            SET banner_key = $2
+            WHERE id = $1
+            RETURNING OLD.banner_key;
+        ", user_id, key)
             .fetch_one(&self.pool)
             .await?;
         
@@ -93,7 +107,11 @@ impl UserManager for IdentityDb {
     
     async fn get_profiles(&self, user_ids: &[i64]) -> Result<Vec<Profile>> {
         let profiles: Vec<Profile> = sqlx::query_as!(Profile, r"
-            SELECT id user_id, username, avatar_url
+            SELECT
+                id user_id,
+                username,
+                avatar_key,
+                banner_key
             FROM users
             WHERE id IN (SELECT * FROM UNNEST($1::bigint[]));
         ", user_ids)
@@ -108,7 +126,8 @@ impl UserManager for IdentityDb {
             SELECT
                 id user_id,
                 username,
-                avatar_url,
+                avatar_key,
+                banner_key,
                 first_name,
                 last_name,
                 bio,
@@ -128,7 +147,8 @@ impl UserManager for IdentityDb {
             SELECT
                 id user_id,
                 username,
-                avatar_url
+                avatar_key,
+                banner_key
             FROM users
             WHERE id = $1;
         ", user_id)
@@ -187,13 +207,15 @@ impl UserManager for IdentityDb {
 pub struct Profile {
     pub user_id: i64,
     pub username: String,
-    pub avatar_url: Option<String>,
+    pub avatar_key: Option<String>,
+    pub banner_key: Option<String>,
 }
 
 pub struct FullProfile {
     pub user_id: i64,
     pub username: String,
-    pub avatar_url: Option<String>,
+    pub avatar_key: Option<String>,
+    pub banner_key: Option<String>,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub bio: Option<String>,

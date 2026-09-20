@@ -1,4 +1,4 @@
-use crate::{avatar_storage::AvatarStorage, database::{IdentityDb, user_manager::{CreateUserData, ProfileMetadata, UserManager}}, service::identity::{CreateUserReq, Empty, FullProfile, Profile, Profiles, UpdateAvatarReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
+use crate::{database::{IdentityDb, user_manager::{CreateUserData, ProfileMetadata, UserManager}}, image_storage::ImageStorage, service::identity::{CreateUserReq, Empty, FullProfile, Profile, Profiles, UpdateAvatarReq, UpdateBannerReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
 
 pub mod identity {
     tonic::include_proto!("identity");
@@ -9,12 +9,12 @@ use tonic::{Request, Response, Status};
 
 pub struct IdentityService {
     db: IdentityDb,
-    avatar_storage: AvatarStorage,
+    image_storage: ImageStorage,
 }
 
 impl IdentityService {
-    pub fn new(db: IdentityDb, avatar_storage: AvatarStorage) -> Self {
-        IdentityService { db, avatar_storage }
+    pub fn new(db: IdentityDb, image_storage: ImageStorage) -> Self {
+        IdentityService { db, image_storage }
     }
 }
 
@@ -29,7 +29,8 @@ impl Identity for IdentityService {
             Ok(v) => v.into_iter().map(|p| Profile {
                 user_id: p.user_id,
                 username: p.username,
-                avatar_url: p.avatar_url, 
+                avatar_key: p.avatar_key, 
+                banner_key: p.banner_key,
             }).collect(),
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
@@ -46,7 +47,8 @@ impl Identity for IdentityService {
             Ok(v) => FullProfile {
                 user_id: v.user_id,
                 username: v.username,
-                avatar_url: v.avatar_url,
+                avatar_key: v.avatar_key,
+                banner_key: v.banner_key,
                 first_name: v.first_name,
                 last_name: v.last_name,
                 bio: v.bio,
@@ -68,7 +70,8 @@ impl Identity for IdentityService {
             Ok(v) => Profile {
                 user_id: v.user_id,
                 username: v.username,
-                avatar_url: v.avatar_url,
+                avatar_key: v.avatar_key,
+                banner_key: v.banner_key,
             },
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
@@ -128,28 +131,73 @@ impl Identity for IdentityService {
 
     async fn update_avatar(&self, req: Request<UpdateAvatarReq>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
-        
-        let key = self.avatar_storage
-            .upload_avatar(&req.image)
-            .await
-            .map_err(|e| Status::from_error(e.into()))?;
 
-        let old_key = self.db
-            .update_avatar(req.user_id, &key)
+        let mut key = None;
+        if let Some(avatar) = req.avatar {
+            let key_str = self.image_storage
+                .upload_avatar(&avatar)
+                .await
+                .map_err(|e| Status::from_error(e.into()))?;
+            key = Some(key_str);
+        }
+        
+
+        let old_key: Result<Option<String>, Status> = self.db
+            .update_avatar(req.user_id, key.as_ref().map(|v| v.as_str()))
             .await
             .map_err(|e| Status::from_error(Box::new(e)));
         let old_key = match old_key {
             Ok(v) => v,
             Err(e) => {
-                let _ = self.avatar_storage
-                    .remove_avatar(&key)
-                    .await;
+                if let Some(key) = key {
+                    let _ = self.image_storage
+                        .remove_avatar(&key)
+                        .await;
+                }
                 return Err(Status::from_error(Box::new(e)));
             }
         };
 
         if let Some(key) = old_key {
-            let _ = self.avatar_storage
+            let _ = self.image_storage
+                .remove_avatar(&key)
+                .await;
+        }
+
+        Ok(Response::new(Empty {}))
+    }
+
+    async fn update_banner(&self, req: Request<UpdateBannerReq>) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let mut key = None;
+        if let Some(banner) = req.banner {
+            let key_str = self.image_storage
+                .upload_banner(&banner)
+                .await
+                .map_err(|e| Status::from_error(e.into()))?;
+            key = Some(key_str);
+        }
+        
+
+        let old_key: Result<Option<String>, Status> = self.db
+            .update_banner(req.user_id, key.as_ref().map(|v| v.as_str()))
+            .await
+            .map_err(|e| Status::from_error(Box::new(e)));
+        let old_key = match old_key {
+            Ok(v) => v,
+            Err(e) => {
+                if let Some(key) = key {
+                    let _ = self.image_storage
+                        .remove_banner(&key)
+                        .await;
+                }
+                return Err(Status::from_error(Box::new(e)));
+            }
+        };
+
+        if let Some(key) = old_key {
+            let _ = self.image_storage
                 .remove_avatar(&key)
                 .await;
         }
