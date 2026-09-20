@@ -1,4 +1,4 @@
-use crate::{database::{IdentityDb, user_manager::{CreateUserData, ProfileMetadata, UserManager}}, image_storage::ImageStorage, service::identity::{CreateUserReq, Empty, FullProfile, FullProfileReq, Profile, Profiles, UpdateAvatarReq, UpdateBannerReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
+use crate::{database::{IdentityDb, user_manager::{CreateUserData, UpdateProfileData, UserManager}}, image_storage::ImageStorage, service::identity::{CreateUserReq, Empty, FullProfile, FullProfileReq, Profile, Profiles, UpdateAvatarReq, UpdateBannerReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
 
 pub mod identity {
     tonic::include_proto!("identity");
@@ -111,7 +111,7 @@ impl Identity for IdentityService {
     async fn update_profile(&self, req: Request<UpdateProfileReq>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let profile_metadata = ProfileMetadata {
+        let profile_metadata = UpdateProfileData {
             username: req.username,
             email: req.email,
             first_name: req.first_name,

@@ -6,9 +6,9 @@ pub trait UserManager {
     async fn get_profiles(&self, user_ids: &[i64]) -> Result<Vec<Profile>>;
     async fn get_basic_profile(&self, user_id: i64) -> Result<Profile>;
     async fn get_full_profile(&self, user_id: i64, with_email: bool) -> Result<FullProfile>;
-    async fn create_user(&self, metadata: &CreateUserData) -> anyhow::Result<i64>;
+    async fn create_user(&self, data: &CreateUserData) -> anyhow::Result<i64>;
     async fn delete_user(&self, user_id: i64) -> Result<()>;
-    async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()>;
+    async fn update_profile(&self, user_id: i64, data: &UpdateProfileData) -> Result<()>;
     async fn update_avatar(&self, user_id: i64, key: Option<&str>) -> Result<Option<String>>;
     async fn update_banner(&self, user_id: i64, key: Option<&str>) -> Result<Option<String>>;
     async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()>;
@@ -16,8 +16,8 @@ pub trait UserManager {
 }
 
 impl UserManager for IdentityDb {
-    async fn create_user(&self, metadata: &CreateUserData) -> anyhow::Result<i64> {
-        let password_hash = util::password::hash_password(&metadata.password)?;
+    async fn create_user(&self, data: &CreateUserData) -> anyhow::Result<i64> {
+        let password_hash = util::password::hash_password(&data.password)?;
         let id = sqlx::query_scalar!(r"
             INSERT INTO users (
                 username,
@@ -28,11 +28,11 @@ impl UserManager for IdentityDb {
             )
             VALUES ($1, $2, $3, $4, $5)
             RETURNING id;",
-            metadata.username,
-            metadata.email,
+            data.username,
+            data.email,
             password_hash,
-            metadata.first_name,
-            metadata.last_name,
+            data.first_name,
+            data.last_name,
         )
             .fetch_one(&self.pool)
             .await?;
@@ -162,7 +162,7 @@ impl UserManager for IdentityDb {
         Ok(profile)
     }
     
-    async fn update_profile(&self, user_id: i64, metadata: &ProfileMetadata) -> Result<()> {
+    async fn update_profile(&self, user_id: i64, data: &UpdateProfileData) -> Result<()> {
         sqlx::query!(r"
             UPDATE users
             SET 
@@ -176,13 +176,13 @@ impl UserManager for IdentityDb {
             WHERE id = $1
             ",
             user_id,
-            metadata.username,
-            metadata.first_name,
-            metadata.last_name,
-            metadata.bio,
-            metadata.email,
-            metadata.country,
-            metadata.city,
+            data.username,
+            data.first_name,
+            data.last_name,
+            data.bio,
+            data.email,
+            data.country,
+            data.city,
         )
             .execute(&self.pool)
             .await?;
@@ -228,7 +228,7 @@ pub struct FullProfile {
     pub city: Option<String>,
 }
 
-pub struct ProfileMetadata {
+pub struct UpdateProfileData {
     pub username: String,
     pub email: String,
     pub first_name: Option<String>,
