@@ -83,17 +83,24 @@ impl Identity for IdentityService {
     async fn create_user(&self, req: Request<CreateUserReq>) -> Result<Response<UserId>, Status> {
         let req = req.into_inner();
         
-        let metadata = CreateUserData {
+        let data = CreateUserData {
             username: req.username,
             email: req.email,
             password: req.password,
             first_name: req.first_name,
             last_name: req.last_name,
         };
-        let user_id = self.db.create_user(&metadata).await;
+        let user_id = self.db.create_user(&data).await;
         let user_id = match user_id {
             Ok(v) => UserId { user_id: v },
-            Err(e) => return Err(Status::from_error(e.into())),
+            Err(e) => {
+                if let Some(e) = e.downcast_ref::<sqlx::Error>() &&
+                    let Some(de) = e.as_database_error() &&
+                    de.is_unique_violation() {
+                    return Err(Status::already_exists("Conflict"));
+                }
+                return Err(Status::from_error(e.into()));
+            },
         };
 
         Ok(Response::new(user_id))
@@ -111,7 +118,7 @@ impl Identity for IdentityService {
     async fn update_profile(&self, req: Request<UpdateProfileReq>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let profile_metadata = UpdateProfileData {
+        let profile_data = UpdateProfileData {
             username: req.username,
             email: req.email,
             first_name: req.first_name,
@@ -121,12 +128,18 @@ impl Identity for IdentityService {
             city: req.city,
         };
         let res = self.db
-            .update_profile(req.user_id, &profile_metadata)
+            .update_profile(req.user_id, &profile_data)
             .await;
 
         match res {
             Ok(_) => Ok(Response::new(Empty {})),
-            Err(e) => Err(Status::from_error(Box::new(e))),
+            Err(e) => {
+                if let Some(de) = e.as_database_error() &&
+                    de.is_unique_violation() {
+                    return Err(Status::already_exists("Conflict"));
+               }
+                Err(Status::from_error(Box::new(e)))
+            },
         }
     }
 
