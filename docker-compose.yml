@@ -31,7 +31,7 @@ services:
     
   rustfs:
     image: rustfs/rustfs:1.0.0-rc.3
-    container_name: rustfs-avatar
+    container_name: rustfs-assets
     depends_on:
       - volume-permissions-helper
     security_opt:
@@ -76,6 +76,52 @@ services:
       retries: 3
       start_period: 40s
 
+  bucket-helper:
+    container_name: bucket-helper
+    image: debian:12.15-slim
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    networks:
+      - rustfs-network
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apt update && apt install curl unzip -y
+        export PATH=$PATH:/root/.local/bin
+        cat > /tmp/assets-policy.json <<'EOF'
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "PublicReadObjects",
+              "Effect": "Allow",
+              "Principal": "*",
+              "Action": ["s3:GetObject"],
+              "Resource": ["arn:aws:s3:::assets/*"]
+            }
+          ]
+        }
+        EOF
+        echo "Set bucket policy json"
+
+        curl -fsSL https://awscli.amazonaws.com/v2/install.sh | bash
+        echo "Installed awscli"
+
+        { echo "rustfsadmin"; echo "rustfsadmin"; echo "eu-west-1"; echo "json"; } | aws configure
+        echo "Configured awscli"
+
+        aws s3api create-bucket \
+        --bucket assets \
+        --endpoint-url http://rustfs:9000
+
+        aws s3api put-bucket-policy \
+        --bucket assets \
+        --policy file:///tmp/assets-policy.json \
+        --endpoint-url http://rustfs:9000
+    restart: "no"
+
   identity-svc:
     build:
       context: .
@@ -83,8 +129,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      rustfs:
-        condition: service_healthy
+      bucket-helper:
+        condition: service_completed_successfully
     ports:
       - "8096:8080"
     networks:

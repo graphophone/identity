@@ -1,12 +1,12 @@
 use tonic::transport::Server;
 use tower_http::trace::TraceLayer;
 
-use crate::{image_storage::ImageStorage, database::IdentityDb, service::{IdentityService, identity::identity_server::IdentityServer}};
+use crate::{asset_storage::AssetStorage, database::IdentityDb, service::{IdentityService, identity::identity_server::IdentityServer}};
 
 pub mod config;
 mod database;
 mod util;
-mod image_storage;
+mod asset_storage;
 mod service;
 
 pub async fn run(conf: config::Config) -> anyhow::Result<()> {
@@ -19,7 +19,7 @@ pub async fn run(conf: config::Config) -> anyhow::Result<()> {
     let identity_db = IdentityDb::build(&conf.postgres)
         .await
         .expect("failed to connect to database");
-    let image_storage = ImageStorage::build(&conf.rustfs)
+    let image_storage = AssetStorage::build(&conf.rustfs)
         .await
         .expect("failed to connect to avatar storage");
     let identity_service = IdentityService::new(identity_db, image_storage);

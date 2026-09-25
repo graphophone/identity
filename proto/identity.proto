@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package identity;
 
-option go_package = "graphophone.identity/internal/services/common/user";
-
 service Identity {
     rpc GetProfiles(UserIds) returns (Profiles) {}
     rpc GetBasicProfile(UserId) returns (Profile) {}
@@ -19,6 +17,11 @@ service Identity {
 
 message Empty {}
 
+message Image {
+    bytes image = 1;
+    string mime_type = 2;
+}
+
 message UserIds {
     repeated int64 user_ids = 1;
 }
@@ -26,8 +29,8 @@ message UserIds {
 message Profile {
     int64 user_id = 1;
     string username = 2;
-    optional string avatar_key = 3;
-    optional string banner_key = 4;
+    optional string avatar_id = 3;
+    optional string banner_id = 4;
 }
 
 message Profiles {
@@ -46,8 +49,8 @@ message FullProfileReq {
 message FullProfile {
     int64 user_id = 1;
     string username = 2;
-    optional string avatar_key = 3;
-    optional string banner_key = 4;
+    optional string avatar_id = 3;
+    optional string banner_id = 4;
     optional string first_name = 5;
     optional string last_name = 6;
     optional string bio = 7;
@@ -77,12 +80,12 @@ message UpdateProfileReq {
 
 message UpdateAvatarReq {
     int64 user_id = 1;
-    optional bytes avatar = 2;
+    optional Image avatar = 2;
 }
 
 message UpdateBannerReq {
     int64 user_id = 1;
-    optional bytes banner = 2;
+    optional Image banner = 2;
 }
 
 message UpdatePasswordReq {

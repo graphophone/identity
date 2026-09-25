@@ -1,4 +1,4 @@
-use crate::{database::{IdentityDb, user_manager::{CreateUserData, UpdateProfileData, UserManager}}, image_storage::ImageStorage, service::identity::{CreateUserReq, Empty, FullProfile, FullProfileReq, Profile, Profiles, UpdateAvatarReq, UpdateBannerReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
+use crate::{database::{IdentityDb, user_manager::{CreateUserData, UpdateProfileData, UserManager}}, asset_storage::AssetStorage, service::identity::{CreateUserReq, Empty, FullProfile, FullProfileReq, Profile, Profiles, UpdateAvatarReq, UpdateBannerReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
 
 pub mod identity {
     tonic::include_proto!("identity");
@@ -9,11 +9,11 @@ use tonic::{Request, Response, Status};
 
 pub struct IdentityService {
     db: IdentityDb,
-    image_storage: ImageStorage,
+    image_storage: AssetStorage,
 }
 
 impl IdentityService {
-    pub fn new(db: IdentityDb, image_storage: ImageStorage) -> Self {
+    pub fn new(db: IdentityDb, image_storage: AssetStorage) -> Self {
         IdentityService { db, image_storage }
     }
 }
@@ -29,8 +29,8 @@ impl Identity for IdentityService {
             Ok(v) => v.into_iter().map(|p| Profile {
                 user_id: p.user_id,
                 username: p.username,
-                avatar_key: p.avatar_key, 
-                banner_key: p.banner_key,
+                avatar_id: p.avatar_id, 
+                banner_id: p.banner_id,
             }).collect(),
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
@@ -48,8 +48,8 @@ impl Identity for IdentityService {
                 user_id: res.user_id,
                 username: res.username,
                 email: res.email,
-                avatar_key: res.avatar_key,
-                banner_key: res.banner_key,
+                avatar_id: res.avatar_id,
+                banner_id: res.banner_id,
                 first_name: res.first_name,
                 last_name: res.last_name,
                 bio: res.bio,
@@ -71,8 +71,8 @@ impl Identity for IdentityService {
             Ok(v) => Profile {
                 user_id: v.user_id,
                 username: v.username,
-                avatar_key: v.avatar_key,
-                banner_key: v.banner_key,
+                avatar_id: v.avatar_id,
+                banner_id: v.banner_id,
             },
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
@@ -146,35 +146,35 @@ impl Identity for IdentityService {
     async fn update_avatar(&self, req: Request<UpdateAvatarReq>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let mut key = None;
-        if let Some(avatar) = req.avatar {
-            let key_str = self.image_storage
-                .upload_avatar(&avatar)
+        let mut id = None;
+        if let Some(image_data) = req.avatar {
+            let id_str = self.image_storage
+                .upload_asset(&image_data.image, &image_data.mime_type)
                 .await
                 .map_err(|e| Status::from_error(e.into()))?;
-            key = Some(key_str);
+            id = Some(id_str);
         }
         
 
-        let old_key: Result<Option<String>, Status> = self.db
-            .update_avatar(req.user_id, key.as_ref().map(|v| v.as_str()))
+        let old_id: Result<Option<String>, Status> = self.db
+            .update_avatar(req.user_id, id.as_ref().map(|v| v.as_str()))
             .await
             .map_err(|e| Status::from_error(Box::new(e)));
-        let old_key = match old_key {
+        let old_id = match old_id {
             Ok(v) => v,
             Err(e) => {
-                if let Some(key) = key {
+                if let Some(id) = id {
                     let _ = self.image_storage
-                        .remove_avatar(&key)
+                        .remove_asset(&id)
                         .await;
                 }
                 return Err(Status::from_error(Box::new(e)));
             }
         };
 
-        if let Some(key) = old_key {
+        if let Some(id) = old_id {
             let _ = self.image_storage
-                .remove_avatar(&key)
+                .remove_asset(&id)
                 .await;
         }
 
@@ -184,35 +184,35 @@ impl Identity for IdentityService {
     async fn update_banner(&self, req: Request<UpdateBannerReq>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let mut key = None;
+        let mut id = None;
         if let Some(banner) = req.banner {
-            let key_str = self.image_storage
-                .upload_banner(&banner)
+            let id_str = self.image_storage
+                .upload_asset(&banner.image, &banner.mime_type)
                 .await
                 .map_err(|e| Status::from_error(e.into()))?;
-            key = Some(key_str);
+            id = Some(id_str);
         }
         
 
-        let old_key: Result<Option<String>, Status> = self.db
-            .update_banner(req.user_id, key.as_ref().map(|v| v.as_str()))
+        let old_id: Result<Option<String>, Status> = self.db
+            .update_banner(req.user_id, id.as_ref().map(|v| v.as_str()))
             .await
             .map_err(|e| Status::from_error(Box::new(e)));
-        let old_key = match old_key {
+        let old_id = match old_id {
             Ok(v) => v,
             Err(e) => {
-                if let Some(key) = key {
+                if let Some(id) = id {
                     let _ = self.image_storage
-                        .remove_banner(&key)
+                        .remove_asset(&id)
                         .await;
                 }
                 return Err(Status::from_error(Box::new(e)));
             }
         };
 
-        if let Some(key) = old_key {
+        if let Some(id) = old_id {
             let _ = self.image_storage
-                .remove_avatar(&key)
+                .remove_asset(&id)
                 .await;
         }
 

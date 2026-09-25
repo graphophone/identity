@@ -21,5 +21,6 @@ services:
   rustfs:
     ports:
       - "19011:9001"
+      - "19010:9000"
     environment:
       - RUSTFS_CONSOLE_ENABLE=true

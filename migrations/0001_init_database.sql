@@ -8,6 +8,6 @@ CREATE TABLE IF NOT EXISTS users (
     bio TEXT,
     city TEXT,
     country TEXT,
-    avatar_key TEXT,
-    banner_key TEXT
+    avatar_id TEXT,
+    banner_id TEXT
 );
