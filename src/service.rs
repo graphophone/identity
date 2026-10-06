@@ -155,7 +155,6 @@ impl Identity for IdentityService {
             id = Some(id_str);
         }
         
-
         let old_id: Result<Option<String>, Status> = self.db
             .update_avatar(req.user_id, id.as_ref().map(|v| v.as_str()))
             .await
