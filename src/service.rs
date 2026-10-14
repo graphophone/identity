@@ -1,20 +1,21 @@
-use crate::{database::{IdentityDb, user_manager::{CreateUserData, UpdateProfileData, UserManager}}, asset_storage::AssetStorage, service::identity::{CreateUserReq, Empty, FullProfile, FullProfileReq, Profile, Profiles, UpdateAvatarReq, UpdateBannerReq, UpdatePasswordReq, UpdateProfileReq, UserId, UserIds, VerifyPasswordReq}};
+use std::sync::Arc;
+
+use crate::{asset_storage::AssetStorage, database::{IdentityDb, user_manager::{CreateUserData, UpdateProfileData, UserManager}}, service::identity::{CreateUserReq, Empty, FullProfile, FullProfileReq, NotifyUploadImageReq, Profile, Profiles, RemoveImageReq, UpdatePasswordReq, UpdateProfileReq, UploadImageReq, UploadImageRes, UserId, UserIds, VerifyPasswordReq, identity_server::Identity}, util};
 
 pub mod identity {
     tonic::include_proto!("identity");
 }
 
-use identity::identity_server::Identity;
 use tonic::{Request, Response, Status};
 
 pub struct IdentityService {
     db: IdentityDb,
-    image_storage: AssetStorage,
+    asset_storage: Arc<AssetStorage>,
 }
 
 impl IdentityService {
-    pub fn new(db: IdentityDb, image_storage: AssetStorage) -> Self {
-        IdentityService { db, image_storage }
+    pub fn new(db: IdentityDb, asset_storage: Arc<AssetStorage>) -> Self {
+        IdentityService { db, asset_storage }
     }
 }
 
@@ -143,78 +144,80 @@ impl Identity for IdentityService {
         }
     }
 
-    async fn update_avatar(&self, req: Request<UpdateAvatarReq>) -> Result<Response<Empty>, Status> {
+    async fn request_upload_image(
+        &self,
+        req: Request<UploadImageReq>,
+    ) -> Result<Response<UploadImageRes>, Status> {
         let req = req.into_inner();
 
-        let mut id = None;
-        if let Some(image_data) = req.avatar {
-            let id_str = self.image_storage
-                .upload_asset(&image_data.image, &image_data.mime_type)
-                .await
-                .map_err(|e| Status::from_error(e.into()))?;
-            id = Some(id_str);
-        }
-        
-        let old_id: Result<Option<String>, Status> = self.db
-            .update_avatar(req.user_id, id.as_ref().map(|v| v.as_str()))
+        let (upload_url, image_id) = self.asset_storage
+            .get_upload_url(&req.mime_type)
             .await
-            .map_err(|e| Status::from_error(Box::new(e)));
-        let old_id = match old_id {
-            Ok(v) => v,
-            Err(e) => {
-                if let Some(id) = id {
-                    let _ = self.image_storage
-                        .remove_asset(&id)
-                        .await;
-                }
-                return Err(Status::from_error(Box::new(e)));
-            }
-        };
+            .map_err(|_| Status::internal("failed to get upload url"))?;
 
-        if let Some(id) = old_id {
-            let _ = self.image_storage
-                .remove_asset(&id)
-                .await;
-        }
+        Ok(Response::new(UploadImageRes {
+            upload_url,
+            image_id,
+        }))
+    }
 
+    async fn notify_upload_avatar(
+        &self,
+        req: Request<NotifyUploadImageReq>,
+    ) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let old_id = self.db
+            .update_avatar(req.user_id, Some(&req.image_id))
+            .await
+            .map_err(|e| Status::from_error(Box::new(e)))?;
+
+        util::assets::remove_asset(Arc::clone(&self.asset_storage), old_id);
         Ok(Response::new(Empty {}))
     }
 
-    async fn update_banner(&self, req: Request<UpdateBannerReq>) -> Result<Response<Empty>, Status> {
+    async fn remove_avatar(
+        &self,
+        req: Request<RemoveImageReq>,
+    ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let mut id = None;
-        if let Some(banner) = req.banner {
-            let id_str = self.image_storage
-                .upload_asset(&banner.image, &banner.mime_type)
-                .await
-                .map_err(|e| Status::from_error(e.into()))?;
-            id = Some(id_str);
-        }
-        
-
-        let old_id: Result<Option<String>, Status> = self.db
-            .update_banner(req.user_id, id.as_ref().map(|v| v.as_str()))
+        let old_id = self.db
+            .update_avatar(req.user_id, None)
             .await
-            .map_err(|e| Status::from_error(Box::new(e)));
-        let old_id = match old_id {
-            Ok(v) => v,
-            Err(e) => {
-                if let Some(id) = id {
-                    let _ = self.image_storage
-                        .remove_asset(&id)
-                        .await;
-                }
-                return Err(Status::from_error(Box::new(e)));
-            }
-        };
+            .map_err(|e| Status::from_error(Box::new(e)))?;
 
-        if let Some(id) = old_id {
-            let _ = self.image_storage
-                .remove_asset(&id)
-                .await;
-        }
+        util::assets::remove_asset(Arc::clone(&self.asset_storage), old_id);
+        Ok(Response::new(Empty {}))
+    }
 
+    async fn notify_upload_banner(
+        &self,
+        req: Request<NotifyUploadImageReq>,
+    ) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let old_id = self.db
+            .update_banner(req.user_id, Some(&req.image_id))
+            .await
+            .map_err(|e| Status::from_error(Box::new(e)))?;
+
+        util::assets::remove_asset(Arc::clone(&self.asset_storage), old_id);
+        Ok(Response::new(Empty {}))
+    }
+
+    async fn remove_banner(
+        &self,
+        req: Request<RemoveImageReq>,
+    ) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let old_id = self.db
+            .update_banner(req.user_id, None)
+            .await
+            .map_err(|e| Status::from_error(Box::new(e)))?;
+
+        util::assets::remove_asset(Arc::clone(&self.asset_storage), old_id);
         Ok(Response::new(Empty {}))
     }
 

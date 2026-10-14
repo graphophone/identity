@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tonic::transport::Server;
 use tower_http::trace::TraceLayer;
 
@@ -19,10 +21,11 @@ pub async fn run(conf: config::Config) -> anyhow::Result<()> {
     let identity_db = IdentityDb::build(&conf.postgres)
         .await
         .expect("failed to connect to database");
-    let image_storage = AssetStorage::build(&conf.rustfs)
+    let asset_storage = AssetStorage::build(&conf.rustfs)
         .await
         .expect("failed to connect to avatar storage");
-    let identity_service = IdentityService::new(identity_db, image_storage);
+    let asset_storage = Arc::new(asset_storage);
+    let identity_service = IdentityService::new(identity_db, asset_storage);
 
     println!("starting identity service");
     Server::builder()

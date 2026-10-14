@@ -9,18 +9,16 @@ service Identity {
     rpc CreateUser(CreateUserReq) returns (UserId) {}
     rpc DeleteUser(UserId) returns (Empty) {}
     rpc UpdateProfile(UpdateProfileReq) returns (Empty) {}
-    rpc UpdateAvatar(UpdateAvatarReq) returns (Empty) {}
-    rpc UpdateBanner(UpdateBannerReq) returns (Empty) {}
+    rpc request_upload_image(UploadImageReq) returns (UploadImageRes) {}
+    rpc NotifyUploadAvatar(NotifyUploadImageReq) returns (Empty) {}
+    rpc RemoveAvatar(RemoveImageReq) returns (Empty) {}
+    rpc NotifyUploadBanner(NotifyUploadImageReq) returns (Empty) {}
+    rpc RemoveBanner(RemoveImageReq) returns (Empty) {}
     rpc UpdatePassword(UpdatePasswordReq) returns (Empty) {}
     rpc VerifyPassword(VerifyPasswordReq) returns (UserId) {}
 }
 
 message Empty {}
-
-message Image {
-    bytes image = 1;
-    string mime_type = 2;
-}
 
 message UserIds {
     repeated int64 user_ids = 1;
@@ -78,14 +76,23 @@ message UpdateProfileReq {
     optional string city = 8;
 }
 
-message UpdateAvatarReq {
+message UploadImageReq {
     int64 user_id = 1;
-    optional Image avatar = 2;
+    string mime_type = 2;
 }
 
-message UpdateBannerReq {
+message NotifyUploadImageReq {
     int64 user_id = 1;
-    optional Image banner = 2;
+    string image_id = 2;
+}
+
+message UploadImageRes {
+    string upload_url = 1;
+    string image_id = 2;
+}
+
+message RemoveImageReq {
+    int64 user_id = 1;
 }
 
 message UpdatePasswordReq {
