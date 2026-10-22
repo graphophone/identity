@@ -3,13 +3,17 @@ use std::sync::Arc;
 use tonic::transport::Server;
 use tower_http::trace::TraceLayer;
 
-use crate::{asset_storage::AssetStorage, database::IdentityDb, service::{IdentityService, identity::identity_server::IdentityServer}};
+use crate::{
+    asset_storage::AssetStorage,
+    database::IdentityDb,
+    service::{IdentityService, identity::identity_server::IdentityServer},
+};
 
+mod asset_storage;
 pub mod config;
 mod database;
-mod util;
-mod asset_storage;
 mod service;
+mod util;
 
 pub async fn run(conf: config::Config) -> anyhow::Result<()> {
     tracing_subscriber::fmt()
@@ -21,7 +25,7 @@ pub async fn run(conf: config::Config) -> anyhow::Result<()> {
     let identity_db = IdentityDb::build(&conf.postgres)
         .await
         .expect("failed to connect to database");
-    let asset_storage = AssetStorage::build(&conf.rustfs)
+    let asset_storage = AssetStorage::build(conf.rustfs.assets_bucket.clone(), &conf.rustfs)
         .await
         .expect("failed to connect to avatar storage");
     let asset_storage = Arc::new(asset_storage);

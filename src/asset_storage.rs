@@ -1,10 +1,10 @@
 use std::time::Duration;
 
+use crate::config;
 use anyhow::Result;
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::{Client, Config, config::Credentials, presigning::PresigningConfig};
 use uuid::Uuid;
-use crate::config;
 
 pub struct AssetStorage {
     bucket: String,
@@ -13,14 +13,9 @@ pub struct AssetStorage {
 }
 
 impl AssetStorage {
-    pub async fn build(conf: &config::RustfsConfig) -> Result<Self> {
-        let credentials = Credentials::new(
-            &conf.access_key,
-            &conf.secret_key,
-            None,
-            None,
-            "rustfs",
-        );
+    pub async fn build(bucket: String, conf: &config::RustfsConfig) -> Result<Self> {
+        let credentials =
+            Credentials::new(&conf.access_key, &conf.secret_key, None, None, "rustfs");
 
         let shared_config = aws_config::defaults(BehaviorVersion::latest())
             .region(Region::new(conf.region.clone()))
@@ -34,7 +29,7 @@ impl AssetStorage {
             .build();
 
         let rustfs_client = Client::from_conf(s3_config);
-        Self::ensure_bucket(&rustfs_client, &conf.assets_bucket).await;
+        Self::ensure_bucket(&rustfs_client, &bucket).await;
 
         // FIX LATER
         let offline_conf = Config::builder()
@@ -49,8 +44,12 @@ impl AssetStorage {
         Ok(AssetStorage {
             client: rustfs_client,
             offline_client,
-            bucket: conf.assets_bucket.clone(),
+            bucket,
         })
+    }
+
+    pub fn prepare_asset_id(&self, id: &str) -> String {
+        format!("{}/{id}", self.bucket.clone())
     }
 
     pub async fn get_upload_url(&self, mime_type: &str) -> Result<(String, String)> {
@@ -61,7 +60,8 @@ impl AssetStorage {
         };
         let id = Uuid::new_v4().to_string();
         let id = format!("{}.{}", id, file_type);
-        let put_request = self.offline_client
+        let put_request = self
+            .offline_client
             .put_object()
             .bucket(&self.bucket)
             .key(&id)
@@ -69,7 +69,7 @@ impl AssetStorage {
             .presigned(
                 PresigningConfig::builder()
                     .expires_in(Duration::from_mins(5))
-                    .build()?
+                    .build()?,
             )
             .await?;
         Ok((put_request.uri().to_string(), id))
@@ -91,7 +91,9 @@ impl AssetStorage {
             .send()
             .await
             .expect("Failed to retrieve buckets");
-        buckets.buckets().iter()
+        buckets
+            .buckets()
+            .iter()
             .find(|&b| b.name == Some(bucket_name.to_string()))
             .expect(&format!("Bucket {bucket_name} does not exist"));
     }

@@ -87,7 +87,7 @@ services:
       - /bin/sh
       - -c
       - |
-        apt update && apt install curl unzip -y
+        apt update && apt install gnupg curl unzip -y
         export PATH=$PATH:/root/.local/bin
         cat > /tmp/assets-policy.json <<'EOF'
         {

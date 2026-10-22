@@ -11,14 +11,20 @@ pub trait UserManager {
     async fn update_profile(&self, user_id: i64, data: &UpdateProfileData) -> Result<()>;
     async fn update_avatar(&self, user_id: i64, id: Option<&str>) -> Result<Option<String>>;
     async fn update_banner(&self, user_id: i64, id: Option<&str>) -> Result<Option<String>>;
-    async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()>;
+    async fn update_password(
+        &self,
+        user_id: i64,
+        old_password: &str,
+        new_password: &str,
+    ) -> anyhow::Result<()>;
     async fn verify_password(&self, username: &str, password: &str) -> anyhow::Result<i64>;
 }
 
 impl UserManager for IdentityDb {
     async fn create_user(&self, data: &CreateUserData) -> anyhow::Result<i64> {
         let password_hash = util::password::hash_password(&data.password)?;
-        let id = sqlx::query_scalar!(r"
+        let id = sqlx::query_scalar!(
+            r"
             INSERT INTO users (
                 username,
                 email,
@@ -34,31 +40,42 @@ impl UserManager for IdentityDb {
             data.first_name,
             data.last_name,
         )
-            .fetch_one(&self.pool)
-            .await?;
+        .fetch_one(&self.pool)
+        .await?;
         Ok(id)
     }
-    
+
     async fn delete_user(&self, user_id: i64) -> Result<()> {
-        sqlx::query!(r"
+        sqlx::query!(
+            r"
             DELETE FROM users WHERE id = $1;
-        ", user_id)
-            .execute(&self.pool)
-            .await?;
+        ",
+            user_id
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
-    
-    async fn update_password(&self, user_id: i64, old_password: &str, new_password: &str) -> anyhow::Result<()> {
+
+    async fn update_password(
+        &self,
+        user_id: i64,
+        old_password: &str,
+        new_password: &str,
+    ) -> anyhow::Result<()> {
         let mut tx = self.pool.begin().await?;
 
-        let password_hash = sqlx::query_scalar!(r"
+        let password_hash = sqlx::query_scalar!(
+            r"
             SELECT password_hash
             FROM users
             WHERE id = $1;
-        ", user_id)
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(anyhow::Error::from)?;
+        ",
+            user_id
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(anyhow::Error::from)?;
 
         let is_valid = util::password::verify_password(old_password, &password_hash)
             .map_err(anyhow::Error::from)?;
@@ -67,62 +84,79 @@ impl UserManager for IdentityDb {
         }
 
         let password_hash = util::password::hash_password(new_password)?;
-        sqlx::query!(r"
+        sqlx::query!(
+            r"
             UPDATE users
             SET password_hash = $2
             WHERE id = $1
-        ", user_id, password_hash)
-            .execute(tx.as_mut())
-            .await?;
+        ",
+            user_id,
+            password_hash
+        )
+        .execute(tx.as_mut())
+        .await?;
 
         tx.commit().await?;
         Ok(())
     }
-    
+
     async fn update_avatar(&self, user_id: i64, id: Option<&str>) -> Result<Option<String>> {
-        let old_url: Option<String> = sqlx::query_scalar!(r"
+        let old_url: Option<String> = sqlx::query_scalar!(
+            r"
             UPDATE users
             SET avatar_id = $2
             WHERE id = $1
             RETURNING OLD.avatar_id;
-        ", user_id, id)
-            .fetch_one(&self.pool)
-            .await?;
-        
+        ",
+            user_id,
+            id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
         Ok(old_url)
     }
 
     async fn update_banner(&self, user_id: i64, id: Option<&str>) -> Result<Option<String>> {
-        let old_url: Option<String> = sqlx::query_scalar!(r"
+        let old_url: Option<String> = sqlx::query_scalar!(
+            r"
             UPDATE users
             SET banner_id = $2
             WHERE id = $1
             RETURNING OLD.banner_id;
-        ", user_id, id)
-            .fetch_one(&self.pool)
-            .await?;
-        
+        ",
+            user_id,
+            id
+        )
+        .fetch_one(&self.pool)
+        .await?;
+
         Ok(old_url)
     }
-    
+
     async fn get_profiles(&self, user_ids: &[i64]) -> Result<Vec<Profile>> {
-        let profiles: Vec<Profile> = sqlx::query_as!(Profile, r"
+        let profiles: Vec<Profile> = sqlx::query_as!(
+            Profile,
+            r"
             SELECT
                 id user_id,
                 username,
-                avatar_id,
-                banner_id
+                avatar_id
             FROM users
             WHERE id IN (SELECT * FROM UNNEST($1::bigint[]));
-        ", user_ids)
-            .fetch_all(&self.pool)
-            .await?;
+        ",
+            user_ids
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(profiles)
     }
-    
+
     async fn get_full_profile(&self, user_id: i64, with_email: bool) -> Result<FullProfile> {
-        let profile = sqlx::query_as!(FullProfile, r"
+        let profile = sqlx::query_as!(
+            FullProfile,
+            r"
             SELECT
                 id user_id,
                 username,
@@ -139,31 +173,38 @@ impl UserManager for IdentityDb {
                 city
             FROM users
             WHERE id = $1;
-        ", user_id, with_email)
-            .fetch_one(&self.pool)
-            .await?;
+        ",
+            user_id,
+            with_email
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(profile)
     }
 
     async fn get_basic_profile(&self, user_id: i64) -> Result<Profile> {
-        let profile = sqlx::query_as!(Profile, r"
+        let profile = sqlx::query_as!(
+            Profile,
+            r"
             SELECT
                 id user_id,
                 username,
-                avatar_id,
-                banner_id
+                avatar_id
             FROM users
             WHERE id = $1;
-        ", user_id)
-            .fetch_one(&self.pool)
-            .await?;
+        ",
+            user_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
 
         Ok(profile)
     }
-    
+
     async fn update_profile(&self, user_id: i64, data: &UpdateProfileData) -> Result<()> {
-        sqlx::query!(r"
+        sqlx::query!(
+            r"
             UPDATE users
             SET 
                 username = $2,
@@ -184,25 +225,27 @@ impl UserManager for IdentityDb {
             data.country,
             data.city,
         )
-            .execute(&self.pool)
-            .await?;
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
     }
-    
+
     async fn verify_password(&self, username: &str, password: &str) -> anyhow::Result<i64> {
-        let res = sqlx::query!(r"
+        let res = sqlx::query!(
+            r"
             SELECT id, password_hash
             FROM users
             WHERE username = $1;
-            ", username)
-            .fetch_one(&self.pool)
-            .await
-            .map_err(anyhow::Error::from)?;
+            ",
+            username
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(anyhow::Error::from)?;
 
         let (id, password_hash) = (res.id, res.password_hash);
-        util::password::verify_password(password, &password_hash)
-            .map_err(anyhow::Error::from)?;
+        util::password::verify_password(password, &password_hash).map_err(anyhow::Error::from)?;
 
         Ok(id)
     }
@@ -212,7 +255,6 @@ pub struct Profile {
     pub user_id: i64,
     pub username: String,
     pub avatar_id: Option<String>,
-    pub banner_id: Option<String>,
 }
 
 pub struct FullProfile {

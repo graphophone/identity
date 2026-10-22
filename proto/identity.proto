@@ -28,7 +28,6 @@ message Profile {
     int64 user_id = 1;
     string username = 2;
     optional string avatar_id = 3;
-    optional string banner_id = 4;
 }
 
 message Profiles {
