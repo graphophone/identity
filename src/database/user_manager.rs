@@ -170,7 +170,8 @@ impl UserManager for IdentityDb {
                 last_name,
                 bio,
                 country,
-                city
+                city,
+                date_part('epoch', created_at)::numeric::bigint created_at
             FROM users
             WHERE id = $1;
         ",
@@ -268,6 +269,7 @@ pub struct FullProfile {
     pub bio: Option<String>,
     pub country: Option<String>,
     pub city: Option<String>,
+    pub created_at: Option<i64>,
 }
 
 pub struct UpdateProfileData {

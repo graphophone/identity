@@ -9,5 +9,6 @@ CREATE TABLE IF NOT EXISTS users (
     city TEXT,
     country TEXT,
     avatar_id TEXT,
-    banner_id TEXT
+    banner_id TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

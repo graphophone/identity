@@ -73,6 +73,7 @@ impl Identity for IdentityService {
                 bio: res.bio,
                 country: res.country,
                 city: res.city,
+                created_at: res.created_at.unwrap(),
             },
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
