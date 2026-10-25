@@ -2,7 +2,6 @@ use std::fs;
 
 use serde::Deserialize;
 
-
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub postgres: PostgresConfig,
@@ -12,8 +11,7 @@ pub struct Config {
 impl Config {
     pub fn build(filename: &str) -> anyhow::Result<Self> {
         let conf_content = fs::read_to_string(filename)?;
-        toml::from_str(&conf_content)
-            .map_err(anyhow::Error::from)
+        toml::from_str(&conf_content).map_err(anyhow::Error::from)
     }
 }
 
@@ -31,6 +29,7 @@ pub struct RustfsConfig {
     pub access_key: String,
     pub secret_key: String,
     pub endpoint_url: String,
+    pub deployed_url: String,
     pub region: String,
     pub assets_bucket: String,
 }
