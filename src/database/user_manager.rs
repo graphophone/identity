@@ -16,7 +16,7 @@ pub trait UserManager {
         user_id: i64,
         old_password: &str,
         new_password: &str,
-    ) -> anyhow::Result<()>;
+    ) -> sqlx::Result<()>;
     async fn verify_password(&self, username: &str, password: &str) -> anyhow::Result<i64>;
 }
 
@@ -48,8 +48,7 @@ impl UserManager for IdentityDb {
     async fn delete_user(&self, user_id: i64) -> Result<()> {
         sqlx::query!(
             r"
-            DELETE FROM users WHERE id = $1;
-        ",
+            DELETE FROM users WHERE id = $1;",
             user_id
         )
         .execute(&self.pool)
@@ -62,34 +61,32 @@ impl UserManager for IdentityDb {
         user_id: i64,
         old_password: &str,
         new_password: &str,
-    ) -> anyhow::Result<()> {
+    ) -> sqlx::Result<()> {
         let mut tx = self.pool.begin().await?;
 
         let password_hash = sqlx::query_scalar!(
             r"
             SELECT password_hash
             FROM users
-            WHERE id = $1;
-        ",
+            WHERE id = $1;",
             user_id
         )
         .fetch_one(&mut *tx)
-        .await
-        .map_err(anyhow::Error::from)?;
+        .await?;
 
         let is_valid = util::password::verify_password(old_password, &password_hash)
-            .map_err(anyhow::Error::from)?;
+            .map_err(|_| sqlx::Error::InvalidArgument("invalid hash".to_string()))?;
         if !is_valid {
-            return Err(anyhow::Error::msg("passwords do not match"));
+            return Err(sqlx::Error::InvalidArgument("invalid hash".to_string()));
         }
 
-        let password_hash = util::password::hash_password(new_password)?;
+        let password_hash =
+            util::password::hash_password(new_password).map_err(|_| sqlx::Error::WorkerCrashed)?;
         sqlx::query!(
             r"
             UPDATE users
             SET password_hash = $2
-            WHERE id = $1
-        ",
+            WHERE id = $1",
             user_id,
             password_hash
         )
@@ -106,8 +103,7 @@ impl UserManager for IdentityDb {
             UPDATE users
             SET avatar_id = $2
             WHERE id = $1
-            RETURNING OLD.avatar_id;
-        ",
+            RETURNING OLD.avatar_id;",
             user_id,
             id
         )
@@ -123,8 +119,7 @@ impl UserManager for IdentityDb {
             UPDATE users
             SET banner_id = $2
             WHERE id = $1
-            RETURNING OLD.banner_id;
-        ",
+            RETURNING OLD.banner_id;",
             user_id,
             id
         )
@@ -143,8 +138,7 @@ impl UserManager for IdentityDb {
                 username,
                 avatar_id
             FROM users
-            WHERE id IN (SELECT * FROM UNNEST($1::bigint[]));
-        ",
+            WHERE id IN (SELECT * FROM UNNEST($1::bigint[]));",
             user_ids
         )
         .fetch_all(&self.pool)
@@ -173,8 +167,7 @@ impl UserManager for IdentityDb {
                 city,
                 date_part('epoch', created_at)::numeric::bigint created_at
             FROM users
-            WHERE id = $1;
-        ",
+            WHERE id = $1;",
             user_id,
             with_email
         )
@@ -193,8 +186,7 @@ impl UserManager for IdentityDb {
                 username,
                 avatar_id
             FROM users
-            WHERE id = $1;
-        ",
+            WHERE id = $1;",
             user_id
         )
         .fetch_one(&self.pool)
@@ -215,8 +207,7 @@ impl UserManager for IdentityDb {
                 email = $6,
                 country = $7,
                 city = $8
-            WHERE id = $1
-            ",
+            WHERE id = $1",
             user_id,
             data.username,
             data.first_name,
@@ -237,8 +228,7 @@ impl UserManager for IdentityDb {
             r"
             SELECT id, password_hash
             FROM users
-            WHERE username = $1;
-            ",
+            WHERE username = $1;",
             username
         )
         .fetch_one(&self.pool)
@@ -246,7 +236,11 @@ impl UserManager for IdentityDb {
         .map_err(anyhow::Error::from)?;
 
         let (id, password_hash) = (res.id, res.password_hash);
-        util::password::verify_password(password, &password_hash).map_err(anyhow::Error::from)?;
+        let is_valid = util::password::verify_password(password, &password_hash)
+            .map_err(anyhow::Error::from)?;
+        if !is_valid {
+            anyhow::bail!("invalid password");
+        }
 
         Ok(id)
     }

@@ -244,10 +244,16 @@ impl Identity for IdentityService {
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        self.db
+        let res = self
+            .db
             .update_password(req.user_id, &req.old_password, &req.new_password)
-            .await
-            .map_err(|e| Status::from_error(e.into()))?;
+            .await;
+
+        if let Err(e) = res {
+            if let sqlx::Error::InvalidArgument(_) = e {
+                return Err(Status::invalid_argument("failed to handle password"));
+            }
+        }
 
         Ok(Response::new(Empty {}))
     }

@@ -9,7 +9,7 @@ service Identity {
     rpc CreateUser(CreateUserReq) returns (UserId) {}
     rpc DeleteUser(UserId) returns (Empty) {}
     rpc UpdateProfile(UpdateProfileReq) returns (Empty) {}
-    rpc request_upload_image(UploadImageReq) returns (UploadImageRes) {}
+    rpc RequestUploadImage(UploadImageReq) returns (UploadImageRes) {}
     rpc NotifyUploadAvatar(NotifyUploadImageReq) returns (Empty) {}
     rpc RemoveAvatar(RemoveImageReq) returns (Empty) {}
     rpc NotifyUploadBanner(NotifyUploadImageReq) returns (Empty) {}
