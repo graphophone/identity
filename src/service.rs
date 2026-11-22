@@ -252,6 +252,8 @@ impl Identity for IdentityService {
         if let Err(e) = res {
             if let sqlx::Error::InvalidArgument(_) = e {
                 return Err(Status::invalid_argument("failed to handle password"));
+            } else {
+                return Err(Status::internal("failed to update password"));
             }
         }
 
